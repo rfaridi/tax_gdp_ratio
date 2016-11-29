@@ -1,0 +1,185 @@
+---
+title: "Tax GDP Ratio"
+author: "Rushad"
+date: "December 4, 2015"
+output: 
+  html_document:
+    css: fcb_style.css
+---
+
+There has been a lot of talk regarding the low tax revenue collection by Bangladesh government. This resulted in quite a bit of low tax revenue as percentage of GDP for Bangladesh. My interest for this write-up is primarily to see how this information stacks up against other countries in the world. 
+
+I used data from WDI indicators. I used the year 2011 because after that I do not have any information for Bangladesh. 
+
+```{r,echo=FALSE,message=F,warning=FALSE}
+require(knitr)
+opts_chunk$set(comment=NA,row.names=FALSE,message=FALSE,echo=F, results='asis')
+
+```
+
+```{r}
+#Required libraries
+require(WDI)
+require(countrycode)
+require(ggplot2)
+require(xtable)
+require(dplyr)
+require(magrittr)
+```
+
+```{r,results='hide'}
+# #first we use the search function
+# tax <- WDIsearch("tax")
+# dim(tax)  
+# #and we see its 50,2 matrix , that means there are bunch of variables with tax in it. but we need GDP in it,so we do a grep now
+# grep("GDP",tax[,2])
+# # we find it its the 18th row
+# 
+# ind <- as.character(tax[18,1])
+# # indName <- as.character(tax[18,2])
+# tgr <- WDI(indicator=ind,
+#            start=2011, 
+#            end=2011, 
+#            extra=TRUE)
+# 
+# tgr_df <- tbl_df(tgr) %>%
+#           rename(tax_gdp_ratio=GC.TAX.TOTL.GD.ZS)
+# 
+# save(tgr_df,file="tgr.RData")
+load("tgr.RData")
+```
+The world average tax GDP ratio is `r round(tgr_df$tax_gdp_ratio[tgr_df$country=="World"],1)`. 
+
+Below in the table I list some of the tax GDP ratio according to income level:
+
+```{r,results='asis'}
+  #filter(region=='Aggregates') %>%
+  
+
+incLevel <- c("High income","Middle income","Low income","World")
+filter(tgr_df, country %in% incLevel) %>%
+  mutate(tax_gdp_ratio=round(tax_gdp_ratio,1)) %>%
+   arrange(country) %>%
+  select('Income Level'=country,
+         'Tax GDP ratio'=tax_gdp_ratio) %>%
+  xtable(caption='Tax GDP ratio: Income Levels') %>%
+  print(type = 'html',
+      include.rownames = F,
+      caption.placement='top')
+
+```
+
+In the above table, worldwide, we see that tax GDP ratio ranges from 12 to 14 percent of GDP. Therefore, we would  expect it around that range for most of the countries around the world but we will have to check that later. 
+
+Now on to regional distribution of tax GDP ratio. Following table lists the major regional distribution and their corresponding tax GDP ratio.
+
+```{r,results='asis'}
+reg <- c('East Asia & Pacific (all income levels)','Europe & Central Asia (all income levels)','Latin America & Caribbean (developing only)', 'North America','South Asia','Sub-Saharan Africa (all income levels)', 'World')
+
+filter(tgr_df, country %in% reg) %>%
+                      mutate(tax_gdp_ratio=round(tax_gdp_ratio,1),
+                             country=sub('\\s\\(.+\\)','',country)) %>%
+                      select(Region=country,
+                             tax_gdp_ratio) %>%
+                      arrange(desc(tax_gdp_ratio)) %>%
+                      rename('Tax GDP Ratio'=tax_gdp_ratio) %>%
+                      xtable(caption='Tax GDP ratio: Regional Distribution') %>% 
+                      print(type = 'html',
+                            include.rownames = F,
+                            caption.placement='top')
+    
+
+```
+
+Let's check out individual country situation:
+the highest 5
+
+```{r}
+filter(tgr_df,
+       !is.na(tax_gdp_ratio), 
+       region!='Aggregates', 
+       min_rank(desc(tax_gdp_ratio))<6) %>% 
+mutate(tax_gdp_ratio=round(tax_gdp_ratio,1),
+         Ranking=min_rank(desc(tax_gdp_ratio))) %>%
+    arrange(desc(tax_gdp_ratio)) %>%    
+  mutate(region=sub('\\s\\(.+\\)','',region)) %>%
+  select(Region=region,
+         Country=country,
+         'Tax GDP Ratio'=tax_gdp_ratio,
+         Ranking) %>% 
+  xtable(caption="Countries with HIGHEST Tax GDP Ratio") %>%
+  print(type = 'html',
+        include.rownames = F,
+        caption.placement='top')
+```
+
+
+Let's check out individual country situation:
+the lowest 5
+
+```{r}
+mutate(tgr_df,
+        tax_gdp_ratio=round(tax_gdp_ratio,1),
+         Ranking=min_rank(desc(tax_gdp_ratio))) %>%
+filter(!is.na(tax_gdp_ratio), 
+       region!='Aggregates', 
+       min_rank(tax_gdp_ratio)<6) %>% 
+
+    arrange(desc(tax_gdp_ratio)) %>%
+  mutate(region=sub('\\s\\(.+\\)','',region)) %>%
+  select(Region=region,
+         Country=country,
+        'Tax GDP Ratio'=tax_gdp_ratio,
+         Ranking) %>% 
+  xtable(caption="Countries with LOWEST Tax GDP Ratio") %>%
+  print(type = 'html',
+        include.rownames = F,
+        caption.placement='top')
+```
+
+
+
+In the above table, we find that South Asia has the lowest tax GDP ratio where Europe and Central Asia takes the honor of posting the highest tax GDP ratio. Since the major objective of this blog is to look into Bangladesh tax GDP ratio and let's compare it with our other South Asian neighbors. 
+
+
+```{r}
+mutate(tgr_df,
+        tax_gdp_ratio=round(tax_gdp_ratio,1),
+         Ranking=min_rank(desc(tax_gdp_ratio))) %>%
+filter(region=='South Asia',
+       !is.na(tax_gdp_ratio)) %>% 
+  arrange(desc(tax_gdp_ratio)) %>%
+select(Country=country,
+       'Tax GDP Ratio'=tax_gdp_ratio,
+       Ranking) %>% 
+xtable(caption="Tax GDP Ratio:South Asia") %>%
+print(type = 'html',
+      include.rownames = F,
+      caption.placement='top')
+
+
+```
+
+Following is the top three ranking countries from each of the region
+
+```{r}
+by_region <- group_by(tgr_df, region)
+
+filter(by_region,region!='Aggregates') %>% 
+   filter(min_rank(desc(tax_gdp_ratio))<=3) %>%
+  arrange(region,desc(tax_gdp_ratio)) %>%
+  ungroup() %>%
+  mutate(region=sub('\\s\\(.+\\)','',region)) %>%
+  select(Region=region,
+         Country=country,
+         'Tax GDP Ratio'=tax_gdp_ratio) %>%
+  xtable(caption="Top Three Countries From Each Region") %>%
+print(type = 'html',
+      include.rownames = F,
+      caption.placement='top')
+
+```
+
+
+
+

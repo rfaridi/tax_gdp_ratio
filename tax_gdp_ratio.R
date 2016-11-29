@@ -2,7 +2,12 @@ library(WDI)
 require(countrycode)
 inds <- c("GC.TAX.TOTL.GD.ZS","GC.XPN.TOTL.GD.ZS")
 indNames <- c("Tax.GDP.Ratio","Expense.GDP.Ratio")
-wdiData <- WDI(country=c("BD","IN","PK","LK","US","JP","KR","DE","BR","NG"), indicator=inds,start=1972, end=format(Sys.Date(), "%Y"), extra=FALSE)
+this.year <- format(Sys.Date(), "%Y")
+
+wdiData <- WDI(country=c("BD","IN","PK","LK"), 
+               indicator=inds,start=this.year, 
+               end=this.year, 
+               extra=FALSE)
 save(wdiData,file="wdiData.RData")
 colnum <- match(inds,names(wdiData))
 names(wdiData)[colnum] <- indNames
